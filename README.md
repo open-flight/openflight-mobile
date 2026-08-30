@@ -5,14 +5,15 @@ connects to the OpenFlight server over Socket.IO and mirrors the web UI's live
 shot data. The goal (see [ROADMAP.md](ROADMAP.md)) is a **complete standalone
 interface** so a builder can run the Pi headless and skip the kiosk touchscreen.
 
-The app is **self-contained** in `mobile/`. The `Shot` type and socket event
-names are deliberately mirrored from the Python wire contract
-(`src/openflight/server.py`'s `shot_to_dict()` and its SocketIO events) rather
-than shared with `ui/`.
+The app lives in its own repo and is **self-contained** — it has no build-time
+dependency on the server. The `Shot` type and socket event names are
+deliberately mirrored from the Python wire contract in
+[open-flight/openflight](https://github.com/open-flight/openflight) (`src/openflight/server.py`'s `shot_to_dict()` and
+its SocketIO events) rather than shared with the web `ui/`.
 
 ## Prerequisites
 
-- **Node.js** — the version pinned in the repo's `.node-version` (currently
+- **Node.js** — the version pinned in this repo's `.node-version` (currently
   **v24**), and npm. CI builds against this same file.
 - **Expo Go on your phone** — the app targets **Expo SDK 54**. Each Expo Go
   build supports exactly one SDK version and it must match the project's, so you
@@ -29,25 +30,18 @@ than shared with `ui/`.
 ## Install (first time only)
 
 ```bash
-cd mobile
 npm install
 ```
 
 ## Run the dev server
 
-Once dependencies are installed, from the repo root:
+Once dependencies are installed:
 
 ```bash
-make mobile-dev
+npm start        # equivalently: npx expo start
 ```
 
-or directly:
-
-```bash
-cd mobile && npx expo start   # equivalently: npm start
-```
-
-Both just start Metro (they don't reinstall). This launches the bundler and
+This just starts Metro (it doesn't reinstall). It launches the bundler and
 prints a **QR code** in the terminal.
 
 ## Testing on a phone with Expo Go
@@ -83,7 +77,7 @@ replaces the Play Store Expo Go — one Expo Go SDK per device at a time.
 
 1. Install an **SDK 54** Expo Go (see above).
 2. Make sure your **phone and dev machine are on the same Wi-Fi network**.
-3. Start the dev server: `make mobile-dev`.
+3. Start the dev server: `npm start`.
 4. Scan the QR code:
    - **iOS** — open the built-in **Camera** app and point it at the QR; tap the
      Expo banner.
@@ -97,7 +91,7 @@ Some networks (guest Wi-Fi, corporate APs with client isolation) block the
 phone from reaching Metro on your machine. Use a tunnel instead:
 
 ```bash
-cd mobile && npx expo start --tunnel
+npx expo start --tunnel
 ```
 
 Tunnel mode routes through Expo's servers (slower, needs `@expo/ngrok`) but
@@ -108,7 +102,7 @@ works across network boundaries.
 Metro caches aggressively. Clear it so changes take effect:
 
 ```bash
-cd mobile && npx expo start -c
+npx expo start -c
 ```
 
 ### Simulator / emulator (optional)
@@ -125,8 +119,9 @@ npm run android   # Android emulator
 The app talks to the OpenFlight Python server's Socket.IO endpoint on **port
 8080**.
 
-1. Start a server for the app to reach. For development without hardware, run
-   the mock server from the repo root:
+1. Start a server for the app to reach. The server lives in
+   [open-flight/openflight](https://github.com/open-flight/openflight). For development without hardware, run the mock
+   server from a checkout of that repo:
 
    ```bash
    make dev        # scripts/start-kiosk.sh --mock

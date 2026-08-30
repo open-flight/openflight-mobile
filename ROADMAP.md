@@ -4,10 +4,11 @@ The goal is to bring the Expo mobile app to a sensible subset of web-UI parity, 
 specifically to make it a **complete standalone interface** so a builder can skip the
 kiosk touchscreen for cost/space reasons and run the Pi headless.
 
-The mobile app stays **self-contained** in `mobile/` — no workspaces, and the `Shot`
+The mobile app stays **self-contained** in this repo — no workspaces, and the `Shot`
 type / socket event names are deliberately mirrored from the Python wire contract
-rather than shared with `ui/`. The real source of truth is `src/openflight/server.py`'s
-`shot_to_dict()` payload and its SocketIO events.
+rather than shared with the web `ui/`. The real source of truth is
+`src/openflight/server.py`'s `shot_to_dict()` payload and its SocketIO events in
+[open-flight/openflight](https://github.com/open-flight/openflight).
 
 ## Locked decisions
 
@@ -36,16 +37,16 @@ rework.
 
 Today the app puts socket logic, connection state, and shot state inline in `App.tsx`
 with `useState`. That won't scale to multiple tabs sharing session state. Mirror the web
-app's proven split (a singleton socket service + a store), kept self-contained in `mobile/`.
+app's proven split (a singleton socket service + a store), kept self-contained here.
 
 | Work item | Detail | Files |
 |---|---|---|
 | Navigation shell | Bottom tabs via expo-router (Live / Shots / Stats / Device). | new `app/` (expo-router) |
-| Socket service | Extract inline socket logic into a singleton mirroring `ui/src/services/socketService.ts` — one place mapping every server event → store. DRY within mobile. | `mobile/services/socket.ts` |
-| State store | A store shared across tabs (zustand works in RN; or reducer + context). Holds shots, connection, session-derived flags. | `mobile/stores/` |
+| Socket service | Extract inline socket logic into a singleton mirroring the web UI's `src/services/socketService.ts` — one place mapping every server event → store. DRY within mobile. | `services/socket.ts` |
+| State store | A store shared across tabs (zustand works in RN; or reducer + context). Holds shots, connection, session-derived flags. | `stores/` |
 | Connection persistence | Persist server URL via AsyncStorage; default to AP fixed IP `192.168.4.1:8080` with `192.168.1.100` as a fallback hint; auto-reconnect with backoff. | socket service + store |
-| Wire-contract expansion | Grow `types.ts` to cover later-phase events (`session_state` extras, `shot_processing`, `session_cleared`, `club_changed`, `player_changed`, `trigger_status`, `power_status`). | `mobile/types.ts` |
-| Test infra | There are zero tests in `mobile/` today. Stand up `jest-expo` + `@testing-library/react-native`. Prerequisite, not optional. | `mobile/` config |
+| Wire-contract expansion | Grow `types.ts` to cover later-phase events (`session_state` extras, `shot_processing`, `session_cleared`, `club_changed`, `player_changed`, `trigger_status`, `power_status`). | `types.ts` |
+| Test infra | There are zero tests in the app today. Stand up `jest-expo` + `@testing-library/react-native`. Prerequisite, not optional. | repo config |
 
 **Test story:** the socket service's event→state transitions are pure and highly testable;
 cover connect/disconnect/reconnect and each event handler. **Size: M.** Risk: low, but
@@ -86,7 +87,7 @@ reducer handling of delete/clear/club/player. Component test for club-select-on-
 test; status view across present/absent hardware; discovery logic mockable. **Size: M.**
 Risk: mDNS on RN can be fiddly (may need a dev-build native module, not pure Expo Go) —
 ship AP-default first, treat mDNS as a stretch. Confirm the dev-build story against the
-Expo SDK 54 / Expo Go constraint in `mobile/AGENTS.md` before adding native deps.
+Expo SDK 54 / Expo Go constraint in `AGENTS.md` before adding native deps.
 
 ---
 
@@ -96,8 +97,8 @@ Expo SDK 54 / Expo Go constraint in `mobile/AGENTS.md` before adding native deps
 
 | Work item | Detail |
 |---|---|
-| Pi access-point setup | `hostapd` + `dnsmasq` setup script alongside `scripts/setup/`. Fixed AP IP the app defaults to. Optional — a builder opts in. |
-| Headless start | A flag/variant of `start-kiosk.sh` that runs the server without launching Chromium (the browser step already no-ops without a display; make it intentional + documented). |
+| Pi access-point setup | `hostapd` + `dnsmasq` setup script alongside `scripts/setup/` in [open-flight/openflight](https://github.com/open-flight/openflight). Fixed AP IP the app defaults to. Optional — a builder opts in. |
+| Headless start | A flag/variant of `start-kiosk.sh` (server repo) that runs the server without launching Chromium (the browser step already no-ops without a display; make it intentional + documented). |
 
 **Size: S–M.** Risk: low; fully decoupled from the mobile phases.
 
@@ -116,7 +117,7 @@ item-by-item). Phase 3 is parallelizable.
 
 ## Cross-cutting principles
 
-- **DRY within mobile**, but not across `ui/`↔`mobile/` — the duplicated `Shot` type and
+- **DRY within this app**, but not across the web `ui/` ↔ mobile — the duplicated `Shot` type and
   event names are deliberate; keep them mirrored, not shared.
 - **Confirm dialogs** on all three destructive actions (delete / clear / shutdown).
 - **Tests land with each feature**, not after; Phase 0 exists partly to make that possible.
