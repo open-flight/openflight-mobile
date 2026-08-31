@@ -14,7 +14,7 @@ its SocketIO events) rather than shared with the web `ui/`.
 ## Prerequisites
 
 - **Node.js** — the version pinned in this repo's `.node-version` (currently
-  **v24**), and npm. CI builds against this same file.
+  **v24**), and npm.
 - **Expo Go on your phone** — the app targets **Expo SDK 54**. Each Expo Go
   build supports exactly one SDK version and it must match the project's, so you
   need an **SDK 54** build specifically; a newer Expo Go rejects the app with
@@ -54,7 +54,7 @@ on your platform:
 
 | Target | How to get an SDK 54 Expo Go |
 | --- | --- |
-| **iPhone (physical)** | The App Store Expo Go is currently capped at **SDK 54** (SDK 55+ is stuck in Apple review), so it already matches. Physical iPhones can't sideload other versions. |
+| **iPhone (physical)** | The App Store Expo Go is still capped at **SDK 54** — SDK 55+ was never approved by Apple — so a plain App Store install already matches this project. (If you ever *do* need a newer Expo Go on a physical iPhone, `npx eas-cli@latest go` builds one on EAS and ships it to your TestFlight; you can't sideload one directly.) |
 | **Android (device or emulator)** | The Play Store serves the latest (~SDK 57), which **won't** run the app, and it has no version picker. Sideload the SDK 54 build instead — see below. |
 | **iOS Simulator** | Download the SDK 54 build from [expo.dev/go](https://expo.dev/go). |
 
