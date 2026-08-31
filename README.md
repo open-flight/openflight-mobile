@@ -19,7 +19,8 @@ its SocketIO events) rather than shared with the web `ui/`.
   build supports exactly one SDK version and it must match the project's, so you
   need an **SDK 54** build specifically; a newer Expo Go rejects the app with
   *"Project is incompatible with this version of Expo Go."* Getting the right
-  build differs by platform — see [Get an SDK 54 Expo Go](#get-an-sdk-54-expo-go).
+  build differs by platform — see [Get an SDK 54 Expo Go](#get-an-sdk-54-expo-go)
+  and Expo's [version-mismatch troubleshooting guide](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
   **Do not upgrade the Expo SDK** without confirming the Expo Go / dev-build
   story first — the SDK is pinned to match the maintainer's Expo Go (see
   [AGENTS.md](AGENTS.md)).
@@ -48,13 +49,14 @@ prints a **QR code** in the terminal.
 
 ### Get an SDK 54 Expo Go
 
-Each Expo Go build supports exactly one SDK version. The App Store / Play Store
-only ever offer the **latest** build, so where you get an SDK 54 build depends
-on your platform:
+Each Expo Go build supports exactly one SDK version, and neither store lets you
+pick one — so where an SDK 54 build comes from depends on your platform. The two
+stores have diverged: the App Store copy is frozen at SDK 54, while the Play
+Store tracks the latest SDK.
 
 | Target | How to get an SDK 54 Expo Go |
 | --- | --- |
-| **iPhone (physical)** | The App Store Expo Go is still capped at **SDK 54** — SDK 55+ was never approved by Apple — so a plain App Store install already matches this project. (If you ever *do* need a newer Expo Go on a physical iPhone, `npx eas-cli@latest go` builds one on EAS and ships it to your TestFlight; you can't sideload one directly.) |
+| **iPhone (physical)** | Install from the App Store — it's [capped at **SDK 54**](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/) because SDK 55+ was never approved by Apple, so it already matches this project. (Needing a *newer* Expo Go later is the awkward case, not this one: [sign.expo.dev](https://sign.expo.dev/) re-signs a build with a free Apple ID but the certificate lapses after ~7 days, and `npx eas-cli@latest go` ships one via TestFlight but needs a paid Developer Program membership.) |
 | **Android (device or emulator)** | The Play Store serves the latest (~SDK 57), which **won't** run the app, and it has no version picker. Sideload the SDK 54 build instead — see below. |
 | **iOS Simulator** | Download the SDK 54 build from [expo.dev/go](https://expo.dev/go). |
 
