@@ -1,0 +1,103 @@
+name: PR Checks
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, ready_for_review, labeled, unlabeled]
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  policy:
+    name: Policy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate title, description, scope, and test changes
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const author = pr.user.login;
+
+            if (author === 'dependabot[bot]') {
+              core.info('Dependabot PR: human-authored metadata checks skipped.');
+              return;
+            }
+
+            const failures = [];
+            const titlePattern =
+              /^(feat|fix|docs|refactor|test|chore|perf|build|ci|style|revert)(\([^)]+\))?!?: .+/;
+            if (!titlePattern.test(pr.title || '')) {
+              failures.push(
+                'Use a conventional PR title: <type>(optional scope): <description>.',
+              );
+            }
+
+            const body = pr.body || '';
+            const requiredSections = [
+              'Why was this required?',
+              'Automated tests',
+              'Manual (human) testing',
+              'Server/API contract impact',
+              'AI assistance',
+            ];
+            const sections = {};
+            let current = null;
+            for (const line of body.split(/\r?\n/)) {
+              const heading = line.match(/^##\s+(.*?)\s*$/);
+              if (heading) {
+                current = heading[1];
+                sections[current] = [];
+              } else if (current !== null) {
+                sections[current].push(line);
+              }
+            }
+            const meaningful = (text) =>
+              text.replace(/<!--[\s\S]*?-->/g, '').replace(/\s+/g, ' ').trim();
+            for (const section of requiredSections) {
+              const content = sections[section]
+                ? meaningful(sections[section].join('\n'))
+                : '';
+              if (!content) failures.push(`Complete the PR section "${section}".`);
+            }
+
+            const files = await github.paginate(github.rest.pulls.listFiles, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: pr.number,
+              per_page: 100,
+            });
+            const changed = files
+              .filter((file) => file.status !== 'removed')
+              .map((file) => file.filename);
+            const isTest = (path) =>
+              /(^|\/)__tests__\//.test(path) || /\.(test|spec)\.[jt]sx?$/.test(path);
+            const isProductSource = (path) =>
+              /^(app|components|services|storage|stores)\/.*\.[jt]sx?$/.test(path) ||
+              path === 'types.ts';
+            const policyPaths = new Set([
+              'AGENTS.md',
+              'AI-POLICY.md',
+              'CONTRIBUTING.md',
+              '.github/CODEOWNERS',
+              '.github/pull_request_template.md',
+            ]);
+            const labels = (pr.labels || []).map((label) => label.name);
+            const sourceChanged = changed.some(isProductSource);
+            const testsChanged = changed.some(isTest);
+
+            if (sourceChanged && !testsChanged && !labels.includes('no-tests-needed')) {
+              failures.push(
+                'Product source changed without test changes. Add tests or the maintainer-controlled no-tests-needed label with an explanation.',
+              );
+            }
+            if (sourceChanged && changed.some((path) => policyPaths.has(path))) {
+              failures.push('Policy/governance files must not be mixed into a product-source PR.');
+            }
+
+            if (failures.length > 0) {
+              core.setFailed(failures.map((failure) => `- ${failure}`).join('\n'));
+            } else {
+              core.info('PR metadata and changed-file policy checks passed.');
+            }

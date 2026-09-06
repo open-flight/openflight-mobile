@@ -3,7 +3,7 @@ import { DEFAULT_SERVER_URL, loadServerUrl, saveServerUrl } from '../storage/con
 
 // Use the official in-memory mock shipped with async-storage.
 jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
 beforeEach(async () => {
