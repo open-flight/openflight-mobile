@@ -8,7 +8,7 @@ Requirements:
 
 - Node.js version from `.node-version`
 - npm
-- an Expo SDK 54-compatible Expo Go, simulator, or development build
+- an Expo SDK 57-compatible Expo Go, simulator, or development build
 - a reachable OpenFlight server for end-to-end connection testing
 
 Install dependencies from the committed lockfile:

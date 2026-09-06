@@ -21,8 +21,8 @@ web-UI repositories at build time.
 - Use the Node.js version in `.node-version` and npm as the package manager.
 - Use `npm ci` for clean validation and keep `package-lock.json` synchronized
   with `package.json`.
-- The project targets Expo SDK 54. Read the
-  [versioned Expo SDK 54 documentation](https://docs.expo.dev/versions/v54.0.0/)
+- The project targets Expo SDK 57. Read the
+  [versioned Expo SDK 57 documentation](https://docs.expo.dev/versions/v57.0.0/)
   before changing Expo configuration or native dependencies.
 - Install Expo and React Native packages with `npx expo install` so their
   versions remain compatible with the pinned SDK.
