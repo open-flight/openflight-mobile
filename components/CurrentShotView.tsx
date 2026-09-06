@@ -88,24 +88,42 @@ export function CurrentShotView({ shot }: { shot: Shot | null }) {
           />
         ) : null}
         {shot.club_angle_deg !== null ? (
-          <MetricTile value={shot.club_angle_deg.toFixed(1)} unit="°" label="Club AoA" subtext="radar" />
+          <MetricTile
+            value={shot.club_angle_deg.toFixed(1)}
+            unit="°"
+            label="Club AoA"
+            subtext="radar"
+          />
         ) : null}
         {shot.club_path_deg !== null ? (
-          <MetricTile value={signed(shot.club_path_deg)} unit="°" label="Club Path" subtext="radar" />
+          <MetricTile
+            value={signed(shot.club_path_deg)}
+            unit="°"
+            label="Club Path"
+            subtext="radar"
+          />
         ) : null}
         {shot.spin_axis_deg !== null ? (
           <MetricTile
             value={signed(shot.spin_axis_deg)}
             unit="°"
             label="Spin Axis"
-            subtext={shot.spin_axis_deg > 2 ? 'fade' : shot.spin_axis_deg < -2 ? 'draw' : 'straight'}
+            subtext={
+              shot.spin_axis_deg > 2 ? 'fade' : shot.spin_axis_deg < -2 ? 'draw' : 'straight'
+            }
           />
         ) : null}
         <MetricTile
           value={hasSpin ? formatSpinRpm(shot.spin_rpm!) : '—'}
           unit={hasSpin ? 'rpm' : undefined}
           label="Spin Rate"
-          subtext={hasSpin && shot.spin_source ? (shot.spin_source === 'calculated' ? 'estimated' : 'radar') : undefined}
+          subtext={
+            hasSpin && shot.spin_source
+              ? shot.spin_source === 'calculated'
+                ? 'estimated'
+                : 'radar'
+              : undefined
+          }
           variant="spin"
           confidence={hasSpin ? shot.spin_quality : null}
         />

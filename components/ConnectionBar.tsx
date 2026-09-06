@@ -57,10 +57,16 @@ export function ConnectionBar() {
 
       {isConnected ? (
         <View style={styles.connectedBar}>
-          <TouchableOpacity style={styles.simulateButton} onPress={() => socketService.simulateShot()}>
+          <TouchableOpacity
+            style={styles.simulateButton}
+            onPress={() => socketService.simulateShot()}
+          >
             <Text style={styles.simulateButtonText}>Simulate Shot</Text>
           </TouchableOpacity>
-          <TouchableOpacity style={styles.disconnectButton} onPress={() => socketService.disconnect()}>
+          <TouchableOpacity
+            style={styles.disconnectButton}
+            onPress={() => socketService.disconnect()}
+          >
             <Text style={styles.disconnectButtonText}>Disconnect</Text>
           </TouchableOpacity>
         </View>

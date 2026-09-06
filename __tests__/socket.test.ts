@@ -22,7 +22,7 @@ jest.mock('socket.io-client', () => {
 });
 
 jest.mock('@react-native-async-storage/async-storage', () =>
-  require('@react-native-async-storage/async-storage/jest/async-storage-mock')
+  require('@react-native-async-storage/async-storage/jest/async-storage-mock'),
 );
 
 const socketMock = jest.requireMock('socket.io-client') as {
@@ -79,7 +79,10 @@ describe('socketService', () => {
   it('opens a connection and reports connecting', () => {
     socketService.connect('http://host:8080');
     expect(mockIo).toHaveBeenCalledTimes(1);
-    expect(mockIo).toHaveBeenCalledWith('http://host:8080', expect.objectContaining({ reconnection: true }));
+    expect(mockIo).toHaveBeenCalledWith(
+      'http://host:8080',
+      expect.objectContaining({ reconnection: true }),
+    );
     expect(useSessionStore.getState().connectionState).toBe('connecting');
   });
 
