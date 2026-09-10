@@ -20,6 +20,11 @@ its SocketIO events) rather than shared with the web `ui/`.
   build supports exactly one SDK version; a mismatch is rejected with *"Project
   is incompatible with this version of Expo Go."* See
   [Keeping Expo Go and the SDK in sync](#keeping-expo-go-and-the-sdk-in-sync).
+- **An Expo account**, signed in on *both* the CLI and Expo Go — see
+  [Run it](#run-it). Expo Go requires this on iOS as of SDK 57.
+- **Xcode 26.4 or newer**, only if you build natively or run the iOS Simulator.
+  Expo SDK 57 requires it; older Xcode versions fail to build. Not needed to run
+  the app in Expo Go on a physical phone.
 - **A running OpenFlight server** to connect to (see
   [Connecting to the server](#connecting-to-the-server)).
 - Your **phone and computer on the same Wi-Fi / LAN**.
@@ -69,12 +74,20 @@ then `npx expo install --fix`, with `npx expo-doctor` clean before committing.
 
 1. Install Expo Go from your platform's store (see above).
 2. Make sure your **phone and dev machine are on the same Wi-Fi network**.
-3. Start the dev server: `npm start`.
-4. Scan the QR code:
+3. **Sign in to the same Expo account on both ends.** As of SDK 57, Expo Go on
+   iOS refuses to open a project unless the CLI and the app are both logged in
+   as the same user:
+   - **Terminal** — `npx expo login`, then follow the browser link.
+   - **Expo Go** — Home tab, tap the avatar in the top-right, sign in.
+
+   Expo Go names which side is missing if either is not signed in. This applies
+   to Expo Go only; simulators and development builds are unaffected.
+4. Start the dev server: `npm start`.
+5. Scan the QR code:
    - **iOS** — open the built-in **Camera** app and point it at the QR; tap the
      Expo banner.
    - **Android** — open **Expo Go** and use its **Scan QR code** option.
-5. The app downloads the JS bundle from Metro and opens on your phone. Saving a
+6. The app downloads the JS bundle from Metro and opens on your phone. Saving a
    file hot-reloads it.
 
 ### If the QR / LAN connection fails
@@ -147,6 +160,7 @@ npm run test:watch
 
 | Symptom | Fix |
 | --- | --- |
+| Expo Go refuses to open the project and asks you to log in | Sign in to the **same** Expo account on both sides: `npx expo login` in the terminal, and the avatar icon on Expo Go's Home tab. Required on iOS as of SDK 57. |
 | "Project is incompatible with this version of Expo Go" | Expo Go and the project disagree on SDK version. If Expo Go is *newer*, the project needs an SDK upgrade PR — see [Keeping Expo Go and the SDK in sync](#keeping-expo-go-and-the-sdk-in-sync). If it is older, update Expo Go from the store. |
 | App loads but can't connect to the server | Confirm phone + server share the LAN, the server is running on port 8080, the IP is correct, and no firewall blocks 8080. |
 | QR scan does nothing / times out | Use `npx expo start --tunnel`. |
