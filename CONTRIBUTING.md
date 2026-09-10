@@ -8,7 +8,9 @@ Requirements:
 
 - Node.js version from `.node-version`
 - npm
-- an Expo SDK 54-compatible Expo Go, simulator, or development build
+- an Expo SDK 57-compatible Expo Go, simulator, or development build
+- an Expo account signed in on both the CLI (`npx expo login`) and Expo Go
+- Xcode 26.4 or newer, if building natively or using the iOS Simulator
 - a reachable OpenFlight server for end-to-end connection testing
 
 Install dependencies from the committed lockfile:

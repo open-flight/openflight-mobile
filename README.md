@@ -15,15 +15,16 @@ its SocketIO events) rather than shared with the web `ui/`.
 
 - **Node.js** — the version pinned in this repo's `.node-version` (currently
   **v24**), and npm.
-- **Expo Go on your phone** — the app targets **Expo SDK 54**. Each Expo Go
-  build supports exactly one SDK version and it must match the project's, so you
-  need an **SDK 54** build specifically; a newer Expo Go rejects the app with
-  *"Project is incompatible with this version of Expo Go."* Getting the right
-  build differs by platform — see [Get an SDK 54 Expo Go](#get-an-sdk-54-expo-go)
-  and Expo's [version-mismatch troubleshooting guide](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/).
-  **Do not upgrade the Expo SDK** without confirming the Expo Go / dev-build
-  story first — the SDK is pinned to match the maintainer's Expo Go (see
-  [AGENTS.md](AGENTS.md)).
+- **Expo Go on your phone** — the app targets **Expo SDK 57**, which is what
+  both app stores currently ship, so a plain store install matches. Each Expo Go
+  build supports exactly one SDK version; a mismatch is rejected with *"Project
+  is incompatible with this version of Expo Go."* See
+  [Keeping Expo Go and the SDK in sync](#keeping-expo-go-and-the-sdk-in-sync).
+- **An Expo account**, signed in on *both* the CLI and Expo Go — see
+  [Run it](#run-it). Expo Go requires this on iOS as of SDK 57.
+- **Xcode 26.4 or newer**, only if you build natively or run the iOS Simulator.
+  Expo SDK 57 requires it; older Xcode versions fail to build. Not needed to run
+  the app in Expo Go on a physical phone.
 - **A running OpenFlight server** to connect to (see
   [Connecting to the server](#connecting-to-the-server)).
 - Your **phone and computer on the same Wi-Fi / LAN**.
@@ -47,28 +48,22 @@ prints a **QR code** in the terminal.
 
 ## Testing on a phone with Expo Go
 
-### Get an SDK 54 Expo Go
+### Keeping Expo Go and the SDK in sync
 
-Each Expo Go build supports exactly one SDK version, and neither store lets you
-pick one — so where an SDK 54 build comes from depends on your platform. The two
-stores have diverged: the App Store copy is frozen at SDK 54, while the Play
-Store tracks the latest SDK.
+Each Expo Go build supports exactly one SDK version. Both stores ship only the
+**latest** build and offer no version picker, and a physical iPhone cannot
+install an older one at all. The project therefore tracks the current SDK; a pin
+would mean the app stops running on any phone whose Expo Go has auto-updated.
 
-| Target | How to get an SDK 54 Expo Go |
+| Target | How to get Expo Go |
 | --- | --- |
-| **iPhone (physical)** | Install from the App Store — it's [capped at **SDK 54**](https://docs.expo.dev/troubleshooting/expo-go-version-mismatch/) because SDK 55+ was never approved by Apple, so it already matches this project. (Needing a *newer* Expo Go later is the awkward case, not this one: [sign.expo.dev](https://sign.expo.dev/) re-signs a build with a free Apple ID but the certificate lapses after ~7 days, and `npx eas-cli@latest go` ships one via TestFlight but needs a paid Developer Program membership.) |
-| **Android (device or emulator)** | The Play Store serves the latest (~SDK 57), which **won't** run the app, and it has no version picker. Sideload the SDK 54 build instead — see below. |
-| **iOS Simulator** | Download the SDK 54 build from [expo.dev/go](https://expo.dev/go). |
+| **iPhone (physical)** | App Store — always the latest build. Older versions cannot be installed. |
+| **Android (device or emulator)** | Play Store for the latest, or pick a specific SDK at [expo.dev/go](https://expo.dev/go) and sideload the APK (one Expo Go SDK per device at a time). |
+| **iOS Simulator** | [expo.dev/go](https://expo.dev/go) — any SDK, so a simulator is the escape hatch when a device's Expo Go has outrun the project. |
 
-On **Android**, get the SDK 54 build one of two ways:
-
-```sh
-npx expo-go download android 54   # downloads the SDK 54 Expo Go, cached in ~/.expo
-```
-
-or pick **SDK 54** + your target at [expo.dev/go](https://expo.dev/go) and
-install the APK (you'll enable "install unknown apps"). The sideloaded build
-replaces the Play Store Expo Go — one Expo Go SDK per device at a time.
+When Expo ships a new SDK, phones auto-update and the project must follow. Per
+[AGENTS.md](AGENTS.md) that is a dedicated PR: `npx expo install expo@^NN.0.0`,
+then `npx expo install --fix`, with `npx expo-doctor` clean before committing.
 
 > For anything beyond quick local testing, use a
 > [development build](https://docs.expo.dev/develop/development-builds/introduction/)
@@ -77,14 +72,22 @@ replaces the Play Store Expo Go — one Expo Go SDK per device at a time.
 
 ### Run it
 
-1. Install an **SDK 54** Expo Go (see above).
+1. Install Expo Go from your platform's store (see above).
 2. Make sure your **phone and dev machine are on the same Wi-Fi network**.
-3. Start the dev server: `npm start`.
-4. Scan the QR code:
+3. **Sign in to the same Expo account on both ends.** As of SDK 57, Expo Go on
+   iOS refuses to open a project unless the CLI and the app are both logged in
+   as the same user:
+   - **Terminal** — `npx expo login`, then follow the browser link.
+   - **Expo Go** — Home tab, tap the avatar in the top-right, sign in.
+
+   Expo Go names which side is missing if either is not signed in. This applies
+   to Expo Go only; simulators and development builds are unaffected.
+4. Start the dev server: `npm start`.
+5. Scan the QR code:
    - **iOS** — open the built-in **Camera** app and point it at the QR; tap the
      Expo banner.
    - **Android** — open **Expo Go** and use its **Scan QR code** option.
-5. The app downloads the JS bundle from Metro and opens on your phone. Saving a
+6. The app downloads the JS bundle from Metro and opens on your phone. Saving a
    file hot-reloads it.
 
 ### If the QR / LAN connection fails
@@ -157,7 +160,8 @@ npm run test:watch
 
 | Symptom | Fix |
 | --- | --- |
-| "Project is incompatible with this version of Expo Go" | Your Expo Go isn't SDK 54. Install an SDK 54 build (see [Get an SDK 54 Expo Go](#get-an-sdk-54-expo-go)); don't bump the SDK (see [AGENTS.md](AGENTS.md)). |
+| Expo Go refuses to open the project and asks you to log in | Sign in to the **same** Expo account on both sides: `npx expo login` in the terminal, and the avatar icon on Expo Go's Home tab. Required on iOS as of SDK 57. |
+| "Project is incompatible with this version of Expo Go" | Expo Go and the project disagree on SDK version. If Expo Go is *newer*, the project needs an SDK upgrade PR — see [Keeping Expo Go and the SDK in sync](#keeping-expo-go-and-the-sdk-in-sync). If it is older, update Expo Go from the store. |
 | App loads but can't connect to the server | Confirm phone + server share the LAN, the server is running on port 8080, the IP is correct, and no firewall blocks 8080. |
 | QR scan does nothing / times out | Use `npx expo start --tunnel`. |
 | Stale code after editing babel/entry config | `npx expo start -c` to clear the Metro cache. |
