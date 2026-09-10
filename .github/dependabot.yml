@@ -4,27 +4,15 @@ updates:
     directory: /
     schedule:
       interval: weekly
-    labels:
-      - dependencies
-      - javascript
     open-pull-requests-limit: 5
+    # Expo and React Native constraints are maintained together with
+    # `npx expo install`; Dependabot may only refresh versions already allowed
+    # by those reviewed manifest constraints.
+    versioning-strategy: lockfile-only
     commit-message:
       prefix: build(deps)
     groups:
-      expo-sdk-compatible:
-        patterns:
-          - expo
-          - expo-*
-          - '@expo/*'
-          - react
-          - react-dom
-          - react-native
-          - react-native-*
-          - '@react-native/*'
-        update-types:
-          - minor
-          - patch
-      npm-minor-patch:
+      npm-lockfile:
         patterns:
           - '*'
         update-types:
@@ -35,9 +23,6 @@ updates:
     directory: /
     schedule:
       interval: monthly
-    labels:
-      - dependencies
-      - ci
     commit-message:
       prefix: ci(deps)
     groups:
