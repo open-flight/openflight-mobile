@@ -13,25 +13,35 @@ import type { SessionStatePayload, ShotEnvelope } from '../types';
 // re-sync the session on every (re)connect.
 class SocketService {
   private socket: Socket | null = null;
+  // Address the current socket was opened against. The connect guard keys on
+  // this as well as connection state, so changing the address can replace an
+  // in-flight attempt instead of being swallowed by it.
+  private url: string | null = null;
 
   connect(url: string): void {
     const store = useSessionStore.getState();
 
-    // A live or in-flight attempt already exists — ignore, so we don't thrash a
-    // healthy connection or stack duplicate attempts.
+    // A live or in-flight attempt to this same address already exists — ignore,
+    // so we don't thrash a healthy connection or stack duplicate attempts. A
+    // different address means the user corrected the server, so the outstanding
+    // attempt is abandoned in favour of the new one rather than ignored.
     const state = store.connectionState;
-    if (this.socket && (state === 'connecting' || state === 'connected')) return;
+    if (this.socket && this.url === url && (state === 'connecting' || state === 'connected')) {
+      return;
+    }
 
-    // Otherwise a socket may still be assigned from a failed attempt: Socket.IO
-    // leaves it in place on connect_error. Tear it down so a retry starts fresh
-    // — without this, a second Connect tap was swallowed and the only recovery
-    // was reloading the app.
+    // Otherwise a socket may still be assigned — either from a failed attempt
+    // (Socket.IO leaves it in place on connect_error) or from an attempt being
+    // replaced above. Tear it down so the new attempt starts fresh; without
+    // this, a second Connect tap was swallowed and the only recovery was
+    // reloading the app.
     if (this.socket) {
       this.socket.close();
       this.socket = null;
     }
 
     store.setConnectionState('connecting');
+    this.url = url;
 
     const socket = io(url, {
       transports: ['websocket', 'polling'],
@@ -46,6 +56,7 @@ class SocketService {
   disconnect(): void {
     this.socket?.close();
     this.socket = null;
+    this.url = null;
     useSessionStore.getState().setConnectionState('disconnected');
   }
 
