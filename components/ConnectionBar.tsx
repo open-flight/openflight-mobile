@@ -25,6 +25,10 @@ const STATUS_COLOR: Record<ConnectionState, string> = {
 export function ConnectionBar() {
   const connectionState = useSessionStore((s) => s.connectionState);
   const isConnected = connectionState === 'connected';
+  // An attempt is outstanding: either still in flight, or failed and being
+  // retried by Socket.IO in the background. Both need a way out — otherwise the
+  // only escape from a wrong address or an unreachable Pi is force-quitting.
+  const isAttempting = connectionState === 'connecting' || connectionState === 'error';
 
   const [serverUrl, setServerUrl] = useState(DEFAULT_SERVER_URL);
 
@@ -83,9 +87,24 @@ export function ConnectionBar() {
             returnKeyType="done"
             onSubmitEditing={connect}
           />
-          <TouchableOpacity style={styles.connectButton} onPress={connect}>
+          <TouchableOpacity
+            style={styles.connectButton}
+            onPress={connect}
+            accessibilityRole="button"
+            accessibilityLabel="Connect to server"
+          >
             <Text style={styles.connectButtonText}>Connect</Text>
           </TouchableOpacity>
+          {isAttempting ? (
+            <TouchableOpacity
+              style={styles.cancelButton}
+              onPress={() => socketService.disconnect()}
+              accessibilityRole="button"
+              accessibilityLabel="Stop connecting"
+            >
+              <Text style={styles.cancelButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
       )}
     </View>
@@ -139,6 +158,17 @@ const styles = StyleSheet.create({
   },
   connectButtonText: {
     color: '#fff',
+    fontWeight: '600',
+  },
+  cancelButton: {
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#ccc',
+  },
+  cancelButtonText: {
+    color: '#666',
     fontWeight: '600',
   },
   connectedBar: {

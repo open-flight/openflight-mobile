@@ -86,10 +86,40 @@ describe('socketService', () => {
     expect(useSessionStore.getState().connectionState).toBe('connecting');
   });
 
-  it('ignores a second connect while already connected', () => {
+  it('ignores a repeated connect to the same address while connecting', () => {
     socketService.connect('http://host:8080');
-    socketService.connect('http://other:8080');
+    socketService.connect('http://host:8080');
     expect(mockIo).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores a repeated connect to the same address while connected', () => {
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    socketService.connect('http://host:8080');
+    expect(mockIo).toHaveBeenCalledTimes(1);
+  });
+
+  it('replaces an in-flight attempt when the address changes', () => {
+    // Regression: the guard keyed only on connection state, so a mistyped
+    // address could not be corrected. Tapping Connect again was swallowed and
+    // the field stayed editable but inert until Socket.IO's 20s default timeout
+    // elapsed, with no feedback that the tap had done nothing.
+    socketService.connect('http://typo:8080');
+    socketService.connect('http://host:8080');
+
+    expect(mockIo).toHaveBeenCalledTimes(2);
+    expect(mockIo).toHaveBeenLastCalledWith('http://host:8080', expect.any(Object));
+    expect(mockClose).toHaveBeenCalledTimes(1); // the abandoned attempt is torn down
+    expect(useSessionStore.getState().connectionState).toBe('connecting');
+  });
+
+  it('reconnects to an address that was previously disconnected from', () => {
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    socketService.disconnect();
+    socketService.connect('http://host:8080');
+    expect(mockIo).toHaveBeenCalledTimes(2);
+    expect(useSessionStore.getState().connectionState).toBe('connecting');
   });
 
   it('on connect: reports connected and requests the session', () => {
