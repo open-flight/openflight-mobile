@@ -15,6 +15,7 @@ import { useThemedStyles } from '../../components/theme/useTheme';
 import { getShotRepository } from '../../storage/db';
 import type { SessionSummary } from '../../storage/shotRepository';
 import type { Shot } from '../../types';
+import { computeStats, type SessionStats } from '../../utils/sessionStats';
 
 // Shot history kept on the device, readable with no simulator in sight. The
 // columns and stat tiles mirror the kiosk's Shots and Stats panels so both
@@ -58,32 +59,11 @@ function shotTime(timestamp: string): string {
     : at.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
 }
 
-interface SessionStats {
-  count: number;
-  avgBall: number | null;
-  maxBall: number | null;
-  avgCarry: number | null;
-  avgClub: number | null;
-  avgSmash: number | null;
-}
-
-// The kiosk's six-tile summary, computed from the stored shots rather than from
-// the server's stats payload — that only ever describes the live session.
-function summarise(shots: Shot[]): SessionStats {
-  const mean = (values: number[]) =>
-    values.length === 0 ? null : values.reduce((total, value) => total + value, 0) / values.length;
-  const present = <T,>(values: (T | null)[]) =>
-    values.filter((value): value is T => value !== null);
-
-  const ballSpeeds = shots.map((shot) => shot.ball_speed_mph);
-  return {
-    count: shots.length,
-    avgBall: mean(ballSpeeds),
-    maxBall: ballSpeeds.length === 0 ? null : Math.max(...ballSpeeds),
-    avgCarry: mean(shots.map((shot) => shot.estimated_carry_yards)),
-    avgClub: mean(present(shots.map((shot) => shot.club_speed_mph))),
-    avgSmash: mean(present(shots.map((shot) => shot.smash_factor))),
-  };
+// The aggregator reports zeroed counters for a session with no shots, as the
+// kiosk does. Mobile reads an absent measurement as an em dash instead, so the
+// zeroes are turned back into nothing here rather than in the maths.
+function measured(stats: SessionStats, value: number): number | null {
+  return stats.shot_count === 0 ? null : value;
 }
 
 function StatTile({ label, value }: { label: string; value: string }) {
@@ -102,14 +82,14 @@ function SessionStatsGrid({ stats }: { stats: SessionStats }) {
 
   return (
     <View style={styles.tiles} testID="session-stats">
-      <StatTile label="Shots" value={String(stats.count)} />
-      <StatTile label="Avg ball" value={speed(stats.avgBall)} />
-      <StatTile label="Max ball" value={speed(stats.maxBall)} />
-      <StatTile label="Avg carry" value={distance(stats.avgCarry)} />
-      <StatTile label="Avg club" value={speed(stats.avgClub)} />
+      <StatTile label="Shots" value={String(stats.shot_count)} />
+      <StatTile label="Avg ball" value={speed(measured(stats, stats.avg_ball_speed))} />
+      <StatTile label="Max ball" value={speed(measured(stats, stats.max_ball_speed))} />
+      <StatTile label="Avg carry" value={distance(measured(stats, stats.avg_carry_est))} />
+      <StatTile label="Avg club" value={speed(stats.avg_club_speed)} />
       <StatTile
         label="Avg smash"
-        value={stats.avgSmash === null ? MISSING : stats.avgSmash.toFixed(2)}
+        value={stats.avg_smash_factor === null ? MISSING : stats.avg_smash_factor.toFixed(2)}
       />
     </View>
   );
@@ -203,7 +183,10 @@ export default function ShotsScreen() {
             keyExtractor={(shot, index) => `${shot.timestamp}-${index}`}
             ListHeaderComponent={
               <>
-                <SessionStatsGrid stats={summarise(shots)} />
+                {/* Summarised from the stored shots rather than from the
+                    server's stats payload — that only ever describes the live
+                    session. */}
+                <SessionStatsGrid stats={computeStats(shots)} />
                 <View style={styles.columns}>
                   <Text style={[styles.columnLabel, styles.columnShot]}>Shot</Text>
                   <Text style={styles.columnLabel}>Ball</Text>

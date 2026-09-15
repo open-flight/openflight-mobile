@@ -204,6 +204,21 @@ describe('Shots screen', () => {
     expect(await screen.findAllByText('—')).toHaveLength(2);
   });
 
+  it('leaves the stat tiles blank for a session with nothing stored in it', async () => {
+    // The shared aggregator reports zeroes for an empty session, the way the
+    // kiosk does. Mobile still reads an absent measurement as a dash, so only
+    // the shot count shows a figure here.
+    mockLoadSessions.mockResolvedValue([SESSION]);
+    mockLoadShots.mockResolvedValue([]);
+
+    await renderScreen();
+    await fireEvent.press(await screen.findByText('2 shots'));
+
+    const tiles = within(await screen.findByTestId('session-stats'));
+    expect(tiles.getByText('0')).toBeTruthy();
+    expect(tiles.getAllByText('—')).toHaveLength(5);
+  });
+
   it('names the player on each row so a shared session can be told apart', async () => {
     // Two people hitting in one bay produce a single session; the row has to
     // say whose shot it was.
