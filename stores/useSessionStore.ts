@@ -52,10 +52,14 @@ export const useSessionStore = create<SessionState>((set) => ({
   addShot: (shot) => set((prev) => ({ shots: [shot, ...prev.shots] })),
   replaceShot: (shot) =>
     set((prev) => {
+      // Normalised because swing-speed payloads omit shot_number rather than
+      // sending null; undefined is not === null and slipped past this guard,
+      // matching every other unnumbered shot on the list.
+      const shotNumber = shot.shot_number ?? null;
       const index =
-        shot.shot_number === null
+        shotNumber === null
           ? -1
-          : prev.shots.findIndex((existing) => existing.shot_number === shot.shot_number);
+          : prev.shots.findIndex((existing) => existing.shot_number === shotNumber);
       if (index === -1) return { shots: [shot, ...prev.shots] };
       const shots = [...prev.shots];
       shots[index] = shot;

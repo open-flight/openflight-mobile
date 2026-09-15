@@ -60,9 +60,11 @@
     "collectCoverageFrom": [
       "app/**/*.{ts,tsx}",
       "components/**/*.{ts,tsx}",
+      "data/**/*.{ts,tsx}",
       "services/**/*.{ts,tsx}",
       "storage/**/*.{ts,tsx}",
       "stores/**/*.{ts,tsx}",
+      "utils/**/*.{ts,tsx}",
       "types.ts"
     ],
     "coverageReporters": [

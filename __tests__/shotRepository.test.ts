@@ -183,6 +183,45 @@ describe('shotRepository', () => {
     expect(sessions[0].lastShotAt).toBe('2026-09-14T09:30:00Z');
   });
 
+  // Swing-speed mode reuses the `shot` event but serializes a different key
+  // set: swing_speed_to_shot_dict() omits shot_number entirely rather than
+  // sending it as null (server.py:4322-4374). An absent key deserializes to
+  // undefined, which is not === null, so the identity guard below takes the
+  // wrong branch and undefined reaches the bound SQL parameter. The factory
+  // above always supplies shot_number, so no existing test reaches this path.
+  describe('a shot the server could not number', () => {
+    function makeUnnumberedShot(overrides: Partial<Shot> = {}): Shot {
+      const shot = makeShot(overrides);
+      delete (shot as Partial<Shot>).shot_number;
+      return shot;
+    }
+
+    it('records every swing of a swing-speed session', async () => {
+      // The whole session was being lost, not one shot: undefined reached a
+      // bound parameter, threw, and saveShot's catch swallowed it. Nothing
+      // surfaced, because the live view never reads back from storage.
+      const repo = createShotRepository(openTestDatabase());
+      await repo.init();
+
+      await repo.saveShot('session-1', makeUnnumberedShot({ timestamp: '2026-09-14T10:00:00Z' }));
+      await repo.saveShot('session-1', makeUnnumberedShot({ timestamp: '2026-09-14T10:01:00Z' }));
+
+      expect(await repo.loadShots('session-1')).toHaveLength(2);
+    });
+
+    it('stores an absent shot number as null, the same as an explicit one', async () => {
+      // Normalising on the way in keeps one representation in the database, so
+      // a reloaded shot is indistinguishable from one the server sent as null.
+      const repo = createShotRepository(openTestDatabase());
+      await repo.init();
+
+      await repo.saveShot('session-1', makeUnnumberedShot({ timestamp: '2026-09-14T10:00:00Z' }));
+
+      const [stored] = await repo.loadShots('session-1');
+      expect(stored.shot_number).toBeNull();
+    });
+  });
+
   it('can be initialised twice without losing what is already stored', async () => {
     // init() runs on every launch; a migration that re-ran destructively would
     // wipe the player's history.

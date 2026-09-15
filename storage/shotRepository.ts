@@ -205,17 +205,24 @@ export function createShotRepository(db: ShotDatabase): ShotRepository {
 
     // The single write path for both `shot` and `shot_update`. The server
     // re-emits an enriched shot under the same shot_number, so a shot already
-    // filed is updated in place. A shot the server could not number — nullable
-    // on the wire, though a supported server always sets it — is appended,
-    // which is the old behaviour and cannot collide with anything.
+    // filed is updated in place. A shot the server could not number is
+    // appended, which cannot collide with anything.
+    //
+    // shot_number is normalised before use: swing-speed mode omits the key
+    // from its payload entirely rather than sending null
+    // (swing_speed_to_shot_dict, server.py:4322-4374). The absent key arrives
+    // as undefined, which is not === null, so it slipped past the guard below
+    // and reached a bound SQL parameter — throwing, and being swallowed by the
+    // catch, which discarded every shot of the session.
     async saveShot(sessionId, shot) {
       try {
+        const shotNumber = shot.shot_number ?? null;
         const existing =
-          shot.shot_number === null
+          shotNumber === null
             ? null
             : await db.getFirstAsync<{ id: number }>(
                 'SELECT id FROM shots WHERE session_id = ? AND shot_number = ?',
-                [sessionId, shot.shot_number],
+                [sessionId, shotNumber],
               );
 
         if (existing) {
@@ -231,7 +238,7 @@ export function createShotRepository(db: ShotDatabase): ShotRepository {
         await db.runAsync(
           `INSERT INTO shots (${columns.join(', ')})
            VALUES (${columns.map(() => '?').join(', ')})`,
-          [sessionId, shot.shot_number, ...measurementValues(shot)],
+          [sessionId, shotNumber, ...measurementValues(shot)],
         );
       } catch {
         // A dropped write loses one shot from history; the live view is unaffected.

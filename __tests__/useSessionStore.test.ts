@@ -157,3 +157,43 @@ describe('an enriched shot replacing its provisional version', () => {
     expect(useSessionStore.getState().shots).toHaveLength(2);
   });
 });
+
+// Swing-speed mode reuses the `shot` event but serializes a different key set:
+// swing_speed_to_shot_dict() omits shot_number entirely rather than sending it
+// as null (server.py:4322-4374). The null guards below are correct; what was
+// missing is normalising an absent key, which arrives as undefined and is not
+// === null, so it slipped past them. The factories above always supply
+// shot_number, so no existing test reaches this path — these build the payload
+// the way the server actually sends it.
+describe('a shot the server could not number', () => {
+  // Strip the key rather than setting it undefined, so the object matches a
+  // JSON.parse of the real payload.
+  function makeUnnumberedShot(overrides: Partial<Shot> = {}): Shot {
+    const shot = makeShot(overrides);
+    delete (shot as Partial<Shot>).shot_number;
+    return shot;
+  }
+
+  it('follows the same append-never-merge rule as an explicit null', () => {
+    // An absent key and an explicit null both mean "the server could not
+    // number this shot", so both must append. Before this was normalised,
+    // undefined slipped past the null guard and matched the first unnumbered
+    // shot on the list — overwriting a different swing.
+    useSessionStore.getState().addShot(makeUnnumberedShot({ timestamp: 't1', club: 'driver' }));
+
+    useSessionStore.getState().replaceShot(makeUnnumberedShot({ timestamp: 't2', club: '7 iron' }));
+
+    expect(useSessionStore.getState().shots).toHaveLength(2);
+  });
+
+  it('leaves a numbered shot alone when an unnumbered one arrives', () => {
+    // A swing-speed rep must never land on a launch-monitor shot.
+    useSessionStore.getState().addShot(makeShot({ shot_number: 7, club: 'driver' }));
+
+    useSessionStore.getState().replaceShot(makeUnnumberedShot({ timestamp: 't9', club: '7 iron' }));
+
+    const shots = useSessionStore.getState().shots;
+    expect(shots).toHaveLength(2);
+    expect(shots.find((shot) => shot.shot_number === 7)?.club).toBe('driver');
+  });
+});
