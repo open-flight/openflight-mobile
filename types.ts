@@ -71,12 +71,34 @@ export interface SessionStatePayload {
 // `shot_processing` event: the capture/analysis lifecycle for the live view.
 export type ShotProcessingState = 'capturing' | 'calculating' | 'failed';
 
-// `club_changed` / `player_changed`: server-pushed selection changes to reflect
-// back into the local pickers without echoing to the server.
+// `club_changed`: a server-pushed selection change, reflected back into the
+// local picker without echoing to the server.
 export interface ClubChangedPayload {
   club: string;
 }
 
-export interface PlayerChangedPayload {
-  player_name: string;
+// --- Profiles (mirrors src/openflight/profiles.py) ---
+// A profile is one named context shots are attributed to — a person, or a
+// place. There is deliberately no separate "player" concept: the server has no
+// set_player or player_changed event, and profiles are what player selection
+// actually needs.
+
+export interface Profile {
+  id: string;
+  name: string;
+  // ISO-8601 UTC, seconds precision, Z-suffixed.
+  created_at: string;
+  // An open dict the server persists and round-trips without interpreting it;
+  // later features claim keys here. Left unshaped on purpose — narrowing it
+  // client-side would silently drop keys written by another client.
+  settings: Record<string, unknown>;
+}
+
+// The `profiles` event: the server's authoritative roster and selection, sent
+// as one snapshot after every mutation — including a mutation it refuses, so a
+// client that asked for something invalid self-heals from the reply.
+export interface ProfilesSnapshot {
+  profiles: Profile[];
+  // Empty string when nothing is selected yet.
+  active_profile_id: string;
 }

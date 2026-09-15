@@ -1,8 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
 import { useSessionStore } from '../stores/useSessionStore';
+import { useProfileStore } from '../stores/useProfileStore';
 import { saveServerUrl } from '../storage/connection';
 import { getShotRepository } from '../storage/db';
-import type { SessionStatePayload, Shot, ShotEnvelope } from '../types';
+import type { ProfilesSnapshot, SessionStatePayload, Shot, ShotEnvelope } from '../types';
 
 // Singleton Socket.IO client, mirroring the web app's socketService shape: one
 // place that maps every server event onto a store mutation. Kept out of the
@@ -59,10 +60,37 @@ class SocketService {
     this.socket = null;
     this.url = null;
     useSessionStore.getState().setConnectionState('disconnected');
+    // Only the deliberate disconnect clears the roster. A transient drop is
+    // handled by the 'disconnect' event below, which leaves it in place —
+    // blanking the picker every time the wifi hiccups would be worse than
+    // showing a roster the next snapshot replaces.
+    useProfileStore.getState().reset();
   }
 
   simulateShot(): void {
     this.socket?.emit('simulate_shot');
+  }
+
+  // --- Profiles ---
+  // Every mutation is fire-and-forget: the server answers each one with a full
+  // `profiles` snapshot, including when it refuses (it will not remove the
+  // active profile, one with shots, or the last one). There is nothing to
+  // update optimistically and nothing to roll back — the reply is the truth.
+
+  setActiveProfile(profileId: string): void {
+    this.socket?.emit('set_active_profile', { profile_id: profileId });
+  }
+
+  addProfile(name: string): void {
+    this.socket?.emit('add_profile', { name });
+  }
+
+  renameProfile(profileId: string, name: string): void {
+    this.socket?.emit('rename_profile', { profile_id: profileId, name });
+  }
+
+  removeProfile(profileId: string): void {
+    this.socket?.emit('remove_profile', { profile_id: profileId });
   }
 
   // Files one shot under the current visit. Callers fire and forget, so this
@@ -94,6 +122,10 @@ class SocketService {
       void saveServerUrl(url);
       // Re-sync the full session on every (re)connect, not just the first.
       socket.emit('get_session');
+      // The roster is not part of session_state, so it is asked for
+      // separately — and on every reconnect, since it may have changed on
+      // another client while this phone was away.
+      socket.emit('get_profiles');
     });
 
     socket.on('disconnect', () => {
@@ -126,6 +158,15 @@ class SocketService {
     socket.on('shot_update', (data: ShotEnvelope) => {
       store().replaceShot(data.shot);
       void this.persistShot(data.shot);
+    });
+
+    // The server's authoritative roster, broadcast after every mutation — and
+    // after one it refuses, which is how a client that asked for something
+    // invalid (removing the active profile, the last profile, or one with
+    // shots) discovers nothing changed. Applying it verbatim is the whole
+    // reconciliation strategy; there is no local copy to merge.
+    socket.on('profiles', (data: ProfilesSnapshot) => {
+      useProfileStore.getState().applySnapshot(data);
     });
   }
 }

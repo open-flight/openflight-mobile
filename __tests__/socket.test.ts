@@ -1,6 +1,7 @@
 import { socketService } from '../services/socket';
 import { useSessionStore } from '../stores/useSessionStore';
-import type { Shot } from '../types';
+import { useProfileStore } from '../stores/useProfileStore';
+import type { Profile, ProfilesSnapshot, Shot } from '../types';
 
 // Fake Socket.IO socket. The fake is built *inside* the mock factory (not
 // captured from an outer const) so it exists by the time `services/socket`
@@ -90,6 +91,9 @@ function makeShot(timestamp: string, overrides: Partial<Shot> = {}): Shot {
 
 beforeEach(() => {
   useSessionStore.setState({ connectionState: 'disconnected', sessionId: null, shots: [] });
+  // The profile store is a module singleton too; without this a roster can
+  // survive into the next test and let an assertion pass for the wrong reason.
+  useProfileStore.getState().reset();
   for (const key of Object.keys(mockHandlers)) delete mockHandlers[key];
   mockIo.mockClear();
   mockEmit.mockClear();
@@ -334,5 +338,145 @@ describe('a shot the server enriches after publishing it', () => {
     await flushPendingWrites();
 
     expect(useSessionStore.getState().shots[0].spin_rpm).toBe(2680);
+  });
+});
+
+function makeProfile(overrides: Partial<Profile> = {}): Profile {
+  return {
+    id: 'p1',
+    name: 'Alex',
+    created_at: '2026-09-14T10:00:00Z',
+    settings: {},
+    ...overrides,
+  };
+}
+
+function makeSnapshot(overrides: Partial<ProfilesSnapshot> = {}): ProfilesSnapshot {
+  return { profiles: [makeProfile()], active_profile_id: 'p1', ...overrides };
+}
+
+describe('the profile roster', () => {
+  it('asks for the roster once connected', () => {
+    // It does not ride along on session_state, so it has to be asked for.
+    socketService.connect('http://host:8080');
+    trigger('connect');
+
+    expect(mockEmit).toHaveBeenCalledWith('get_profiles');
+  });
+
+  it('asks again after reconnecting', () => {
+    // Profiles can be added or renamed on the kiosk while the phone is away.
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    trigger('disconnect');
+    mockEmit.mockClear();
+
+    trigger('connect');
+
+    expect(mockEmit).toHaveBeenCalledWith('get_profiles');
+  });
+
+  it('mirrors the roster the server broadcast', () => {
+    socketService.connect('http://host:8080');
+    trigger('connect');
+
+    trigger('profiles', {
+      profiles: [makeProfile({ id: 'p1', name: 'Alex' }), makeProfile({ id: 'p2', name: 'Sam' })],
+      active_profile_id: 'p2',
+    });
+
+    const state = useProfileStore.getState();
+    expect(state.profiles.map((profile) => profile.name)).toEqual(['Alex', 'Sam']);
+    expect(state.activeProfileId).toBe('p2');
+    expect(state.loaded).toBe(true);
+  });
+
+  it('keeps the roster through a transient drop', () => {
+    // Socket.IO reconnects on its own; blanking the picker on every wifi
+    // hiccup would be worse than showing one the next snapshot replaces.
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    trigger('profiles', makeSnapshot());
+
+    trigger('disconnect');
+
+    expect(useProfileStore.getState().profiles).toHaveLength(1);
+  });
+
+  it('forgets the roster when the user disconnects deliberately', () => {
+    // A roster from the previous server must not linger as though current.
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    trigger('profiles', makeSnapshot());
+
+    socketService.disconnect();
+
+    const state = useProfileStore.getState();
+    expect(state.profiles).toEqual([]);
+    expect(state.loaded).toBe(false);
+  });
+
+  it('keeps the last good roster when a malformed snapshot arrives', () => {
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    trigger('profiles', makeSnapshot());
+
+    trigger('profiles', { profiles: undefined });
+
+    expect(useProfileStore.getState().profiles).toHaveLength(1);
+  });
+
+  it('applies a repeated snapshot without accumulating the roster', () => {
+    // The server rebroadcasts after every mutation, so the same roster arrives
+    // repeatedly; each one replaces rather than appends.
+    socketService.connect('http://host:8080');
+    trigger('connect');
+
+    trigger('profiles', makeSnapshot());
+    trigger('profiles', makeSnapshot());
+
+    expect(useProfileStore.getState().profiles).toHaveLength(1);
+  });
+});
+
+describe('changing the roster', () => {
+  beforeEach(() => {
+    socketService.connect('http://host:8080');
+    trigger('connect');
+    mockEmit.mockClear();
+  });
+
+  it('selects a profile by id', () => {
+    socketService.setActiveProfile('p2');
+    expect(mockEmit).toHaveBeenCalledWith('set_active_profile', { profile_id: 'p2' });
+  });
+
+  it('adds a profile by name', () => {
+    socketService.addProfile('Sam');
+    expect(mockEmit).toHaveBeenCalledWith('add_profile', { name: 'Sam' });
+  });
+
+  it('renames a profile', () => {
+    socketService.renameProfile('p1', 'Alexandra');
+    expect(mockEmit).toHaveBeenCalledWith('rename_profile', {
+      profile_id: 'p1',
+      name: 'Alexandra',
+    });
+  });
+
+  it('removes a profile', () => {
+    socketService.removeProfile('p2');
+    expect(mockEmit).toHaveBeenCalledWith('remove_profile', { profile_id: 'p2' });
+  });
+
+  it('sends nothing when there is no connection', () => {
+    // A screen can still be mounted after a disconnect; emitting into a closed
+    // socket would be silently lost, so nothing is sent at all.
+    socketService.disconnect();
+    mockEmit.mockClear();
+
+    socketService.setActiveProfile('p2');
+
+    expect(mockEmit).not.toHaveBeenCalled();
   });
 });
