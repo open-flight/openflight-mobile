@@ -3,7 +3,16 @@ updates:
   - package-ecosystem: npm
     directory: /
     schedule:
-      interval: weekly
+      interval: daily
+    # Expo Doctor immediately requires newly released SDK-compatible patches.
+    # Keep the safety delay for other dependencies, but let Dependabot align
+    # Expo packages before unrelated pull requests are blocked by CI.
+    cooldown:
+      default-days: 3
+      exclude:
+        - expo
+        - 'expo-*'
+        - '@expo/*'
     open-pull-requests-limit: 5
     # Expo and React Native constraints are maintained together with
     # `npx expo install`; Dependabot may only refresh versions already allowed
