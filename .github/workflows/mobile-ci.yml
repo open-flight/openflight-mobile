@@ -29,6 +29,10 @@ jobs:
         run: npm ci
       - name: Check Expo project health
         run: npm run doctor
+        env:
+          # Check against the installed SDK, not Expo's live patch list, so a new Expo
+          # patch can't fail an unchanged commit. expo-drift.yml reports patch drift.
+          EXPO_OFFLINE: '1'
       - name: Lint
         run: npm run lint
       - name: Check formatting
